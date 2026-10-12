@@ -19,19 +19,20 @@
 
 ## Decision 2: Login uses a cookie with a session
 
-**Decision:** The initial web application will use server-side sessions stored in Redis, with a random session identifier sent to the browser in an HttpOnly cookie.
+**Decision:** The initial web application will use server-side sessions stored in PostgreSQL. The browser receives only a random session identifier in an HttpOnly cookie. The database stores a hash of that identifier, not the raw value.
 
-**Why:** Server-side sessions make logout and session revocation straightforward because the server controls session validity. HttpOnly cookies prevent ordinary client-side JavaScript from reading the session identifier, reducing exposure to token theft through certain XSS scenarios.
+**Why:** The server can revoke a session by deleting its row, so logout is immediate. PostgreSQL is already required for the MVP, and Redis is deferred to a later milestone, so sessions do not add a second service. Hashing the identifier means a database copy does not hand out usable cookies. HttpOnly cookies prevent ordinary client-side JavaScript from reading the session identifier.
 
-**Risk:** Sessions require shared storage and session expiration management. Cookie-based authentication also requires appropriate CSRF protection, and XSS can still perform actions through a victim's browser even if it cannot read an HttpOnly cookie.
+**Risk:** Every authenticated request reads the session table, and expired rows must be deleted or they accumulate. Cookie-based authentication also requires CSRF protection, and XSS can still perform actions through a victim's browser even if it cannot read an HttpOnly cookie.
 
 **How we stay safe:**
 
-* Set cookies with `HttpOnly`, `Secure` in production, and an appropriate `SameSite` policy.
+* Set cookies with `HttpOnly`, `Secure` in production, and `SameSite=Lax`.
 * Use HTTPS in production.
-* Protect state-changing requests against CSRF where required by the cookie and deployment configuration.
+* Protect state-changing requests against CSRF.
 * Regenerate the session after login or privilege changes.
-* Apply idle and absolute session expiration.
+* Apply idle and absolute session expiration, and delete expired rows on a schedule.
+* Store only a hash of the session identifier, with an index for the lookup.
+* Load the user's organization role from membership, not from the cookie.
 * Never store passwords or sensitive session data in browser-readable storage.
-* Keep session secrets and Redis credentials out of source control.
-* Configure Redis as shared session storage for multiple API instances.
+* Keep session secrets out of source control.

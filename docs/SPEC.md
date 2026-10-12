@@ -6,52 +6,53 @@ TeamFlow is a multi-tenant project and task management platform designed for com
 
 ## 2. User Roles
 
-* **Owner:** Manages the company, controls organization settings, assigns administrative roles, manages members, and has full control over the organization's resources.
-* **Admin:** Manages members, invitations, projects, and organization-level settings, but cannot delete or transfer ownership of the company.
+* **Owner:** Manages the company, controls organization settings, assigns administrative roles, manages members, and has full control over the organization's resources. Only an Owner can transfer ownership.
+* **Admin:** Manages members, invitations, projects, and organization-level settings. An Admin cannot delete the organization, transfer ownership, grant the Owner role, or change or remove the Owner.
 * **Manager:** Creates and manages projects, assigns tasks to team members, updates task details, and monitors project progress.
-* **Member:** Views accessible projects, manages assigned tasks, updates task status, and participates in discussions through comments.
+* **Member:** Views projects and tasks in the organization, updates the status of assigned tasks, edits and deletes tasks assigned to them, and participates in discussions through comments.
 
 ## 3. Permission Table
 
-| Action                       | Owner | Admin | Manager | Member         |
-| ---------------------------- | ----- | ----- | ------- | -------------- |
-| View organization            | Yes   | Yes   | Yes     | Yes            |
-| Update organization settings | Yes   | Yes   | No      | No             |
-| Delete organization          | Yes   | No    | No      | No             |
-| Invite members               | Yes   | Yes   | No      | No             |
-| Remove members               | Yes   | Yes   | No      | No             |
-| Change member roles          | Yes   | Yes   | No      | No             |
-| Create projects              | Yes   | Yes   | Yes     | No             |
-| View projects                | Yes   | Yes   | Yes     | Yes            |
-| Update project details       | Yes   | Yes   | Yes     | No             |
-| Archive projects             | Yes   | Yes   | Yes     | No             |
-| Create tasks                 | Yes   | Yes   | Yes     | No             |
-| Assign tasks                 | Yes   | Yes   | Yes     | No             |
-| View tasks                   | Yes   | Yes   | Yes     | Yes            |
-| Update task status           | Yes   | Yes   | Yes     | Yes            |
-| Edit task details            | Yes   | Yes   | Yes     | Own tasks only |
-| Delete tasks                 | Yes   | Yes   | Yes     | Own tasks only |
-| Add comments                 | Yes   | Yes   | Yes     | Yes            |
-| Edit own comments            | Yes   | Yes   | Yes     | Yes            |
-| Delete own comments          | Yes   | Yes   | Yes     | Yes            |
-| Delete other users' comments | Yes   | Yes   | Yes     | No             |
+In the MVP, every member of an organization can view every project and task in that organization. A Member can change a task only when they are its assignee.
 
-### Permission Rule I Changed
+| Action                       | Owner | Admin              | Manager | Member              |
+| ---------------------------- | ----- | ------------------ | ------- | ------------------- |
+| View organization            | Yes   | Yes                | Yes     | Yes                 |
+| Update organization settings | Yes   | Yes                | No      | No                  |
+| Delete organization          | Yes   | No                 | No      | No                  |
+| Invite members               | Yes   | Yes                | No      | No                  |
+| Remove members               | Yes   | Yes, except Owner  | No      | No                  |
+| Change member roles          | Yes   | Yes, except Owner  | No      | No                  |
+| Create projects              | Yes   | Yes                | Yes     | No                  |
+| View projects                | Yes   | Yes                | Yes     | Yes                 |
+| Update project details       | Yes   | Yes                | Yes     | No                  |
+| Archive projects             | Yes   | Yes                | Yes     | No                  |
+| Create tasks                 | Yes   | Yes                | Yes     | No                  |
+| Assign tasks                 | Yes   | Yes                | Yes     | No                  |
+| View tasks                   | Yes   | Yes                | Yes     | Yes                 |
+| Update task status           | Yes   | Yes                | Yes     | Assigned tasks only |
+| Edit task details            | Yes   | Yes                | Yes     | Assigned tasks only |
+| Delete tasks                 | Yes   | Yes                | Yes     | Assigned tasks only |
+| Add comments                 | Yes   | Yes                | Yes     | Yes                 |
+| Edit own comments            | Yes   | Yes                | Yes     | Yes                 |
+| Delete own comments          | Yes   | Yes                | Yes     | Yes                 |
+| Delete other users' comments | Yes   | Yes                | Yes     | No                  |
 
-I allow Members to edit and delete their own tasks, but not tasks belonging to other members. This gives team members ownership of their work while preventing unauthorized changes to other people's responsibilities.
+"Assigned tasks only" means the Member is that task's single assignee. Members cannot create tasks, so assignment is what makes a task theirs.
 
 ## 4. Business Rules
 
 1. Every user must have a verified email address before creating an organization.
 2. Every organization must have at least one Owner.
-3. A user can belong to multiple organizations, with a potentially different role in each organization.
-4. Every project must belong to exactly one organization.
-5. Every task must belong to a project, and its project must belong to the same organization as the acting user.
-6. Users can access organization resources only if they are authorized members of that organization.
-7. Archived projects are read-only: their tasks can be viewed, but tasks cannot be created, edited, reassigned, or deleted while the project is archived.
-8. A task may have a due date in the past, but the application should flag it as overdue if it is not completed.
-9. Deleting a project archives it by default rather than immediately permanently deleting its tasks and history.
-10. Members can update the status of tasks assigned to them and edit or delete their own comments. Only authorized roles can reassign tasks or change project settings.
+3. An Admin may invite, remove, and change the roles of Managers and Members. An Admin cannot grant the Owner role, change the Owner's role, or remove the Owner. Only an Owner can transfer ownership.
+4. A user can belong to multiple organizations, with a potentially different role in each organization.
+5. Every task belongs to exactly one project. That project belongs to exactly one organization, and the task's organization is the project's organization.
+6. A task has at most one assignee, and the assignee must be a member of the task's organization.
+7. Users can access organization resources only if they are authorized members of that organization.
+8. Archived projects are read-only: their tasks can be viewed, but tasks cannot be created, edited, reassigned, or deleted while the project is archived.
+9. A task may have a due date in the past, but the application should flag it as overdue if it is not completed.
+10. Deleting a project archives it by default rather than immediately permanently deleting its tasks and history.
+11. Members can update the status of tasks assigned to them, and can edit or delete those assigned tasks and their own comments. Only Owner, Admin, and Manager can reassign tasks or change tasks assigned to someone else.
 
 ## 5. User Stories
 
@@ -65,6 +66,8 @@ I allow Members to edit and delete their own tasks, but not tasks belonging to o
 8. As a **Member**, I want to view my assigned tasks and update their status so that I can track my work.
 9. As a **Member**, I want to comment on tasks so that I can discuss progress and blockers with my team.
 10. As an **Owner**, I want to archive completed projects so that old work remains available for reference without being changed.
+11. As a **User**, I want to accept an invitation so that I can join an organization with the role I was given.
+12. As a **Member**, I want to edit and delete tasks assigned to me so that I can correct my own work without changing anyone else's tasks.
 
 ## 6. Security and "Hacker" Cases
 
@@ -76,15 +79,15 @@ I allow Members to edit and delete their own tasks, but not tasks belonging to o
 
 ### Attack 2: Changing the Organization ID
 
-**Attack:** A user modifies the `organizationId` in a request body or query string to access another company's projects.
+**Attack:** A user changes `organizationId` in the URL, request body, or query string to read or change another company's projects.
 
-**Stopped by:** The server derives the user's authorized organization context from the authenticated identity and verifies membership before accessing the requested resource. Client-supplied organization IDs are never treated as proof of authorization.
+**Stopped by:** The route may include an organization id, but that value is not authorization. The server loads the caller's membership for that organization from the database. If the caller is not a member, the API returns 404 and does not reveal whether the organization exists. Every tenant query is then filtered by that verified organization id. A body or query value that names a different organization is rejected.
 
 ### Attack 3: Escalating Permissions
 
-**Attack:** A Member sends a request containing `"role": "Owner`" or calls an admin-only endpoint directly.
+**Attack:** A Member sends `"role": "Owner"` in a request body, or calls an admin-only endpoint directly, to gain Owner permissions.
 
-**Stopped by:** The server checks the authenticated user's role and permissions for the target organization on every protected operation. Unauthorized requests return 403, and sensitive role changes are restricted to authorized roles.
+**Stopped by:** The caller's role is read from their membership row, not from the request body. Changing a role is a separate operation. An Owner may change roles. An Admin may change Manager and Member roles, but cannot grant, change, or remove the Owner role. A member of the organization who lacks permission receives 403. A caller who is not a member of the organization receives 404.
 
 ## 7. Decisions and Reasons
 
@@ -94,11 +97,11 @@ No. Archived projects are read-only. Users can view tasks and comments, but task
 
 ### 2. When a task is deleted, should it be fully removed or just hidden?
 
-A task should be soft-deleted initially. It is marked as deleted and hidden from normal queries, while its history can be retained for recovery and auditing. Permanent deletion, if required, should follow a defined retention policy.
+A task should be soft-deleted initially. It is marked as deleted and hidden from normal queries, while its history can be retained for recovery and auditing. Permanent deletion, if required, should follow a defined retention policy. Risk: a query that forgets the soft-delete filter can still return deleted tasks, so every normal read must exclude them.
 
 ### 3. Can a Member give their task to another person?
 
-No. Members can update the status of tasks assigned to them, but only Managers and authorized administrators can reassign tasks. This prevents users from changing other people's responsibilities without approval.
+No. Members can update the status of tasks assigned to them, and can edit or delete those tasks, but only Managers and authorized administrators can reassign tasks. This prevents users from changing other people's responsibilities without approval.
 
 ### 4. Should an unverified user be allowed to create a company?
 
@@ -109,10 +112,13 @@ No. Email verification is required before organization creation. This reduces sp
 The first version of TeamFlow will include:
 
 * User registration, login, logout, and email verification
+* Server-side sessions stored in PostgreSQL
 * Organization creation and membership
-* Role-based authorization
+* Invitations, including sending and accepting an invitation
+* Role-based authorization, including member removal and role changes, with the Owner protection
 * Projects and project archiving
-* Tasks, assignments, statuses, and due dates
+* Tasks, one assignee per task, statuses, due dates, and an overdue flag
+* Soft-deleted tasks hidden from normal queries
 * Comments
 * Pagination and filtering
 * PostgreSQL migrations and constraints
