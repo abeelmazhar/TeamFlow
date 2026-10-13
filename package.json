@@ -1,0 +1,10 @@
+{
+  "name": "teamflow",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev:api": "npm run dev -w @teamflow/api",
+    "build:api": "npm run build -w @teamflow/api",
+    "typecheck:api": "npm run typecheck -w @teamflow/api"
+  }
+}
