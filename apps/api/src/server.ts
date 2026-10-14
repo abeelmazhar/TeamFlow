@@ -1,4 +1,7 @@
-/**
- * Starts the HTTP server from the app built in app.ts.
- */
-export {};
+import { app } from "./app.js";
+
+const port = Number(process.env.PORT ?? 3000);
+
+app.listen(port, () => {
+  console.log(`API listening on http://localhost:${port}`);
+});
