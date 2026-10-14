@@ -5,6 +5,8 @@
   "scripts": {
     "dev:api": "npm run dev -w @teamflow/api",
     "build:api": "npm run build -w @teamflow/api",
-    "typecheck:api": "npm run typecheck -w @teamflow/api"
+    "typecheck:api": "npm run typecheck -w @teamflow/api",
+  "migrate:up": "npm run migrate:up -w @teamflow/api",
+"migrate:down": "npm run migrate:down -w @teamflow/api"
   }
 }
