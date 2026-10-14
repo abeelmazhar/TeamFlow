@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: teamflow-postgres
+    environment:
+      POSTGRES_USER: teamflow
+      POSTGRES_PASSWORD: teamflow_dev_password
+      POSTGRES_DB: teamflow_dev
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teamflow -d teamflow_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
