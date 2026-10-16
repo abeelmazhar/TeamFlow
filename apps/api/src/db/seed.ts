@@ -124,7 +124,22 @@ try {
       [acme, homepage, bilal, "Please use the new brand colors."],
     );
 
-    // YOUR TURN: see the exercise below
+    const mobile = await createProject(db, acme, "Mobile App", bilal);
+    await createTask(db, {
+      orgId: acme, projectId: mobile, title: "Sketch onboarding screens",
+      status: "todo", priority: "medium", dueInDays: 7,
+      assigneeId: null, createdBy: bilal,
+    });
+    await createTask(db, {
+      orgId: acme, projectId: mobile, title: "Review login flow",
+      status: "in_review", priority: "high", dueInDays: 2,
+      assigneeId: sara, createdBy: bilal,
+    });
+    await db.query(
+      `INSERT INTO comments (organization_id, task_id, author_id, body)
+       VALUES ($1, $2, $3, $4)`,
+      [acme, homepage, hina, "The hero image should work on small screens too."],
+    );
   });
 
   console.log("✅ Seed complete");
