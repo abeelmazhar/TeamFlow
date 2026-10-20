@@ -1,4 +1,11 @@
-/**
- * Project HTTP handlers. Reads the request, calls the service, and sends the response.
- */
-export {};
+import type { Request, Response } from "express";
+import { getTenantContext } from "../../lib/tenant-context.js";
+import { listProjectsQuerySchema } from "./projects.schemas.js";
+import * as projectsService from "./projects.service.js";
+
+export async function listProjects(req: Request, res: Response) {
+  const ctx = getTenantContext(req);
+  const query = listProjectsQuerySchema.parse(req.query); // throws ZodError → 400
+  const result = await projectsService.listProjects(ctx, query);
+  res.json({ data: result.items, meta: { pagination: result.pagination } });
+}

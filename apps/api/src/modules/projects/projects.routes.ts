@@ -1,4 +1,6 @@
-/**
- * Project routes. Each route validates input, then calls the controller.
- */
-export {};
+import { Router } from "express";
+import * as controller from "./projects.controller.js";
+
+export const projectsRouter = Router();
+
+projectsRouter.get("/", controller.listProjects);

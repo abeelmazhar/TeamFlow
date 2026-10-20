@@ -3,6 +3,10 @@ import type { Request, Response } from "express";
 import { pool } from "./db/pool.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { notFoundHandler } from "./middleware/not-found.js";
+import { Router } from "express";
+import { devAuth } from "./middleware/dev-auth.js";
+import { requireMembership } from "./middleware/require-membership.js";
+import { projectsRouter } from "./modules/projects/projects.routes.js";
 
 export const app = express();
 app.disable("x-powered-by");
@@ -23,6 +27,13 @@ app.get("/ready", (_req: Request, res: Response) => {
     }
   }); 
 });
+// Everything under /api/v1/orgs/:orgId requires auth + membership
+const tenantRouter = Router({ mergeParams: true }); // mergeParams: lets it see :orgId
+tenantRouter.use(devAuth, requireMembership);
+tenantRouter.use("/projects", projectsRouter);
+
+app.use("/api/v1/orgs/:orgId", tenantRouter);
+
 
 app.use(notFoundHandler); // no route matched
 app.use(errorHandler);    // must be LAST
