@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { ZodError } from "zod";
 import { AppError } from "../lib/errors.js";
 
 function isInvalidJson(err: unknown): boolean {
@@ -31,6 +32,20 @@ export function errorHandler(err: unknown, req: Request, res: Response, next: Ne
       error: {
         code: "INVALID_JSON",
         message: "Request body is not valid JSON",
+      },
+    });
+    return;
+  }
+
+  if (err instanceof ZodError) {
+    res.status(400).json({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Invalid request",
+        details: err.issues.map((issue) => ({
+          path: issue.path.map(String).join("."),
+          message: issue.message,
+        })),
       },
     });
     return;
