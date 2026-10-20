@@ -1,6 +1,8 @@
 import express from "express";
 import type { Request, Response } from "express";
 import { pool } from "./db/pool.js";
+import { errorHandler } from "./middleware/error-handler.js";
+import { notFoundHandler } from "./middleware/not-found.js";
 
 export const app = express();
 app.disable("x-powered-by");
@@ -22,11 +24,7 @@ app.get("/ready", (_req: Request, res: Response) => {
   }); 
 });
 
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({
-    error: {
-      code: "NOT_FOUND",
-      message: "Route not found",
-    },
-  });
-});
+app.use(notFoundHandler); // no route matched
+app.use(errorHandler);    // must be LAST
+
+
