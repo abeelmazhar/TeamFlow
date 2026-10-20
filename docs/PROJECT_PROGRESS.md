@@ -42,6 +42,9 @@ Phase 0, Milestone 0.1: Product spec & decisions — Final (waiting for intervie
 ## Known bugs / blockers
 - None (no code yet)
 
+## Known issues
+- devAuth header is temporary; remove in Phase 4.
+
 ## Tests run
 - None yet (no code)
 

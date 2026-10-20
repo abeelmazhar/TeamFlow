@@ -1,3 +1,4 @@
+import type { Pool, PoolClient } from "pg";
 import pg from "pg";
 import { env } from "../config/env.js";
 
@@ -11,3 +12,6 @@ export const pool = new pg.Pool({
 pool.on("error", (err) => {
   console.error("Unexpected PostgreSQL pool error:", err.message);
 });
+
+/** A repository can run on the pool OR inside a transaction client. */
+export type Db = Pool | PoolClient;
