@@ -3,7 +3,6 @@
     "target": "ES2023",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "rootDir": "src",
     "outDir": "dist",
     "types": ["node"],
 
@@ -19,4 +18,5 @@
     "skipLibCheck": true,
     "sourceMap": true
   },
- "include": ["src", "test", "vitest.config.ts"]
+  "include": ["src", "test", "vitest.config.ts"]
+}
