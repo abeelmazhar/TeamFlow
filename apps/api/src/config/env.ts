@@ -1,10 +1,13 @@
 import { existsSync } from "node:fs";
 import { z } from "zod";
 
+
+
+const envFile = process.env.NODE_ENV === "test" ? ".env.test" : ".env";
 // In development, load variables from apps/api/.env.
 // In production, real environment variables are set by the server, not a file.
-if (process.env.NODE_ENV !== "production" && existsSync(".env")) {
-  process.loadEnvFile(".env");
+if (process.env.NODE_ENV !== "production" && existsSync(envFile)) {
+  process.loadEnvFile(envFile);
 }
 
 const envSchema = z.object({

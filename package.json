@@ -8,6 +8,7 @@
     "typecheck:api": "npm run typecheck -w @teamflow/api",
   "migrate:up": "npm run migrate:up -w @teamflow/api",
 "migrate:down": "npm run migrate:down -w @teamflow/api",
-"db:seed": "npm run db:seed -w @teamflow/api"
+"db:seed": "npm run db:seed -w @teamflow/api",
+"test:api": "npm run test -w @teamflow/api" 
   }
 }
