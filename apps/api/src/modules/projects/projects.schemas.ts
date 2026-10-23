@@ -7,3 +7,11 @@ export const listProjectsQuerySchema = z.object({
 });
 
 export type ListProjectsQuery = z.infer<typeof listProjectsQuerySchema>;
+
+
+export const createProjectBodySchema = z.strictObject({
+  name: z.string().trim().min(1).max(120),
+  description: z.string().trim().max(5000).optional(),
+});
+
+export type CreateProjectInput = z.infer<typeof createProjectBodySchema>;
