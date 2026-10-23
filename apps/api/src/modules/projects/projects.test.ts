@@ -104,3 +104,81 @@ describe("GET /api/v1/orgs/:orgId/projects", () => {
     expect(names).toEqual(["Mobile App"]);
   });
 });
+
+
+
+
+describe("POST /api/v1/orgs/:orgId/projects", () => {
+  it.each(["owner", "admin", "manager"] as const)(
+    "lets a %s create a project and records activity",
+    async (role) => {
+      const userId = await createUser(pool, `${role}@acme.test`, role);
+      await addMember(pool, acmeId, userId, role);
+
+      const res = await request(app)
+        .post(listUrl(acmeId))
+        .set("X-Dev-User-Id", userId)
+        .send({ name: "  New Website  ", description: "Redesign" });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data).toMatchObject({
+        name: "New Website", // trimmed
+        description: "Redesign",
+        archivedAt: null,
+      });
+
+      // The activity event was saved in the same transaction
+      const { rows } = await pool.query(
+        `SELECT action, actor_id, entity_type, entity_id
+         FROM activity_events WHERE organization_id = $1`,
+        [acmeId],
+      );
+      expect(rows).toEqual([
+        { action: "project.created", actor_id: userId, entity_type: "project", entity_id: res.body.data.id },
+      ]);
+    },
+  );
+
+  it("forbids a member from creating a project, and saves nothing", async () => {
+    const res = await request(app)
+      .post(listUrl(acmeId))
+      .set("X-Dev-User-Id", hinaId) // Hina is a member
+      .send({ name: "Sneaky Project" });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe("FORBIDDEN");
+
+    const { rows } = await pool.query(
+      "SELECT count(*)::int AS n FROM projects WHERE name = 'Sneaky Project'",
+    );
+    expect(rows[0].n).toBe(0);
+  });
+
+  it("returns 404 to a user from another organization", async () => {
+    const res = await request(app)
+      .post(listUrl(acmeId))
+      .set("X-Dev-User-Id", omarId)
+      .send({ name: "Hacked" });
+
+    expect(res.status).toBe(404);
+  });
+
+  it.each([
+    ["missing name", {}],
+    ["blank name", { name: "   " }],
+    ["name too long", { name: "x".repeat(121) }],
+    ["mass assignment: organizationId", { name: "Ok", organizationId: "anything" }],
+    ["mass assignment: createdBy", { name: "Ok", createdBy: "anything" }],
+  ])("rejects invalid body: %s", async (_label, body) => {
+    const managerId = await createUser(pool, "manager@acme.test", "Manager");
+    await addMember(pool, acmeId, managerId, "manager");
+
+    const res = await request(app)
+      .post(listUrl(acmeId))
+      .set("X-Dev-User-Id", managerId)
+      .send(body);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("VALIDATION_ERROR");
+  });
+});

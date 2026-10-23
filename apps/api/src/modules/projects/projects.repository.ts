@@ -64,3 +64,18 @@ export async function countProjects(
   );
   return Number(rows[0]?.count ?? 0); // Postgres returns count as a string
 }
+
+export async function insertProject(
+  db: Db,
+  input: { organizationId: string; name: string; description: string | null; createdBy: string },
+): Promise<Project> {
+  const { rows } = await db.query<ProjectRow>(
+    `INSERT INTO projects (organization_id, name, description, created_by)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id, name, description, archived_at, created_at, updated_at`,
+    [input.organizationId, input.name, input.description, input.createdBy],
+  );
+  const row = rows[0];
+  if (!row) throw new Error("Insert into projects returned no row");
+  return toProject(row);
+}
