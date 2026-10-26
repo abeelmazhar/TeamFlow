@@ -15,3 +15,15 @@ export const createProjectBodySchema = z.strictObject({
 });
 
 export type CreateProjectInput = z.infer<typeof createProjectBodySchema>;
+
+
+export const updateProjectBodySchema = z
+  .strictObject({
+    name: z.string().trim().min(1).max(120).optional(),
+    description: z.string().trim().max(5000).nullable().optional(), // null = clear it
+  })
+  .refine((b) => b.name !== undefined || b.description !== undefined, {
+    message: "Provide at least one field to update",
+  });
+
+export type UpdateProjectInput = z.infer<typeof updateProjectBodySchema>;

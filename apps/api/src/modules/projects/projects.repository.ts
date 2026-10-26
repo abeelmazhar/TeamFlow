@@ -79,3 +79,69 @@ export async function insertProject(
   if (!row) throw new Error("Insert into projects returned no row");
   return toProject(row);
 }
+
+
+
+const PROJECT_COLUMNS = "id, name, description, archived_at, created_at, updated_at";
+
+export async function findProjectById(
+  db: Db,
+  organizationId: string,
+  projectId: string,
+  opts: { forUpdate?: boolean } = {},
+): Promise<Project | null> {
+  const { rows } = await db.query<ProjectRow>(
+    `SELECT ${PROJECT_COLUMNS}
+     FROM projects
+     WHERE id = $1 AND organization_id = $2
+     ${opts.forUpdate ? "FOR UPDATE" : ""}`,
+    [projectId, organizationId],
+  );
+  const row = rows[0];
+  return row ? toProject(row) : null;
+}
+
+export async function updateProject(
+  db: Db,
+  organizationId: string,
+  projectId: string,
+  patch: { name?: string; description?: string | null },
+): Promise<Project> {
+  const { rows } = await db.query<ProjectRow>(
+    `UPDATE projects SET
+       name        = COALESCE($3, name),
+       description = CASE WHEN $4::boolean THEN $5 ELSE description END,
+       updated_at  = now()
+     WHERE id = $1 AND organization_id = $2
+     RETURNING ${PROJECT_COLUMNS}`,
+    [
+      projectId,
+      organizationId,
+      patch.name ?? null,                 // null → COALESCE keeps the old name
+      patch.description !== undefined,    // true only if the caller wants to change it
+      patch.description ?? null,
+    ],
+  );
+  const row = rows[0];
+  if (!row) throw new Error("updateProject: project not found");
+  return toProject(row);
+}
+
+export async function setProjectArchived(
+  db: Db,
+  organizationId: string,
+  projectId: string,
+  archived: boolean,
+): Promise<Project> {
+  const { rows } = await db.query<ProjectRow>(
+    `UPDATE projects SET
+       archived_at = CASE WHEN $3::boolean THEN now() ELSE NULL END,
+       updated_at  = now()
+     WHERE id = $1 AND organization_id = $2
+     RETURNING ${PROJECT_COLUMNS}`,
+    [projectId, organizationId, archived],
+  );
+  const row = rows[0];
+  if (!row) throw new Error("setProjectArchived: project not found");
+  return toProject(row);
+}
