@@ -7,23 +7,28 @@ import { addMember, createOrg, createProject, createUser } from "../../db/factor
 let acmeId: string;
 let hinaId: string;
 let omarId: string;
+let bilalId: string;
+let websiteId: string;
+let globexProjectId: string;
 
 const listUrl = (orgId: string) => `/api/v1/orgs/${orgId}/projects`;
+const projectUrl = (orgId: string, projectId: string) => `/api/v1/orgs/${orgId}/projects/${projectId}`;
 
-// Runs before EACH test (after setup.ts has emptied the DB)
 beforeEach(async () => {
   hinaId = await createUser(pool, "hina@acme.test", "Hina");
+  bilalId = await createUser(pool, "bilal@acme.test", "Bilal");
   omarId = await createUser(pool, "omar@globex.test", "Omar");
 
   acmeId = await createOrg(pool, "Acme");
   const globexId = await createOrg(pool, "Globex");
 
   await addMember(pool, acmeId, hinaId, "member");
+  await addMember(pool, acmeId, bilalId, "manager");
   await addMember(pool, globexId, omarId, "owner");
 
-  await createProject(pool, acmeId, "Website Redesign", hinaId);
+  websiteId = await createProject(pool, acmeId, "Website Redesign", hinaId);
   await createProject(pool, acmeId, "Mobile App", hinaId);
-  await createProject(pool, globexId, "Secret Globex Project", omarId);
+  globexProjectId = await createProject(pool, globexId, "Secret Globex Project", omarId);
 });
 
 describe("GET /api/v1/orgs/:orgId/projects", () => {
@@ -182,3 +187,109 @@ describe("POST /api/v1/orgs/:orgId/projects", () => {
     expect(res.body.error.code).toBe("VALIDATION_ERROR");
   });
 });
+
+
+// ------------------------------------------------------------
+//-----------------------------------------------------------
+describe("GET /api/v1/orgs/:orgId/projects/:projectId", () => {
+  it("returns the project to a member", async () => {
+    const res = await request(app).get(projectUrl(acmeId, websiteId)).set("X-Dev-User-Id", hinaId);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ id: websiteId, name: "Website Redesign" });
+  });
+
+  it("IDOR: returns 404 for another company's project through my org URL", async () => {
+    const res = await request(app)
+      .get(projectUrl(acmeId, globexProjectId)) // real ID, wrong company
+      .set("X-Dev-User-Id", hinaId);
+    expect(res.status).toBe(404);
+    expect(res.body.error.message).toBe("Project not found");
+  });
+
+  it("IDOR: returns 404 when using the other company's org URL", async () => {
+    const res = await request(app)
+      .get(projectUrl(/* Globex org */ (await orgOfProject(globexProjectId)), globexProjectId))
+      .set("X-Dev-User-Id", hinaId);
+    expect(res.status).toBe(404);
+    expect(res.body.error.message).toBe("Organization not found");
+  });
+
+  it("returns 404 for an invalid project id", async () => {
+    const res = await request(app).get(projectUrl(acmeId, "abc")).set("X-Dev-User-Id", hinaId);
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("PATCH /api/v1/orgs/:orgId/projects/:projectId", () => {
+  it("lets a manager rename a project and records what changed", async () => {
+    const res = await request(app)
+      .patch(projectUrl(acmeId, websiteId))
+      .set("X-Dev-User-Id", bilalId)
+      .send({ name: "Website v2" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.name).toBe("Website v2");
+
+    const { rows } = await pool.query(
+      "SELECT action, metadata FROM activity_events WHERE entity_id = $1",
+      [websiteId],
+    );
+    expect(rows).toEqual([
+      { action: "project.updated", metadata: { name: { from: "Website Redesign", to: "Website v2" } } },
+    ]);
+  });
+
+  it("clears the description when sent null", async () => {
+    await pool.query("UPDATE projects SET description = 'old' WHERE id = $1", [websiteId]);
+    const res = await request(app)
+      .patch(projectUrl(acmeId, websiteId))
+      .set("X-Dev-User-Id", bilalId)
+      .send({ description: null });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.description).toBeNull();
+  });
+
+  it("forbids a member", async () => {
+    const res = await request(app)
+      .patch(projectUrl(acmeId, websiteId))
+      .set("X-Dev-User-Id", hinaId)
+      .send({ name: "Nope" });
+    expect(res.status).toBe(403);
+  });
+
+  it("IDOR: cannot update another company's project, and it stays unchanged", async () => {
+    const res = await request(app)
+      .patch(projectUrl(acmeId, globexProjectId))
+      .set("X-Dev-User-Id", bilalId)
+      .send({ name: "Hacked" });
+    expect(res.status).toBe(404);
+
+    const { rows } = await pool.query("SELECT name FROM projects WHERE id = $1", [globexProjectId]);
+    expect(rows[0].name).toBe("Secret Globex Project");
+  });
+
+  it("rejects an empty body", async () => {
+    const res = await request(app)
+      .patch(projectUrl(acmeId, websiteId))
+      .set("X-Dev-User-Id", bilalId)
+      .send({});
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 409 when the project is archived", async () => {
+    await pool.query("UPDATE projects SET archived_at = now() WHERE id = $1", [websiteId]);
+    const res = await request(app)
+      .patch(projectUrl(acmeId, websiteId))
+      .set("X-Dev-User-Id", bilalId)
+      .send({ name: "Too late" });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe("CONFLICT");
+  });
+});
+
+// Small helper for the second IDOR test
+async function orgOfProject(projectId: string): Promise<string> {
+  const { rows } = await pool.query("SELECT organization_id FROM projects WHERE id = $1", [projectId]);
+  return rows[0].organization_id;
+}
