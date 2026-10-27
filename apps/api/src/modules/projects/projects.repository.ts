@@ -88,13 +88,14 @@ export async function findProjectById(
   db: Db,
   organizationId: string,
   projectId: string,
-  opts: { forUpdate?: boolean } = {},
+  opts: { forUpdate?: boolean; forShare?: boolean } = {},
 ): Promise<Project | null> {
+  const lock = opts.forUpdate ? "FOR UPDATE" : opts.forShare ? "FOR SHARE" : "";
   const { rows } = await db.query<ProjectRow>(
     `SELECT ${PROJECT_COLUMNS}
      FROM projects
      WHERE id = $1 AND organization_id = $2
-     ${opts.forUpdate ? "FOR UPDATE" : ""}`,
+     ${lock}`,
     [projectId, organizationId],
   );
   const row = rows[0];

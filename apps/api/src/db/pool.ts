@@ -2,6 +2,10 @@ import type { Pool, PoolClient } from "pg";
 import pg from "pg";
 import { env } from "../config/env.js";
 
+// DATE columns stay "YYYY-MM-DD". The default parser makes a JS Date at local
+// midnight, which can shift the calendar day when the value is sent as JSON.
+pg.types.setTypeParser(1082, (value: string) => value);
+
 export const pool = new pg.Pool({
   connectionString: env.DATABASE_URL,
   max: 10,

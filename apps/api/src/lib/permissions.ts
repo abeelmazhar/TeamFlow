@@ -6,6 +6,7 @@ const PERMISSIONS = {
   "project:create": ["owner", "admin", "manager"],
   "project:update": ["owner", "admin", "manager"],
   "project:archive": ["owner", "admin", "manager"],
+  "task:create": ["owner", "admin", "manager"],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Action = keyof typeof PERMISSIONS;
