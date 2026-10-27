@@ -96,3 +96,38 @@ export async function countTasks(
   );
   return Number(rows[0]?.count ?? 0);
 }
+
+export async function insertTask(
+  db: Db,
+  input: {
+    organizationId: string;
+    projectId: string;
+    title: string;
+    description: string | null;
+    priority: TaskPriority;
+    dueDate: string | null;
+    assigneeId: string | null;
+    createdBy: string;
+  },
+): Promise<Task> {
+  const { rows } = await db.query<TaskRow>(
+    `INSERT INTO tasks
+       (organization_id, project_id, title, description,
+        priority, due_date, assignee_id, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING ${TASK_COLUMNS}`,
+    [
+      input.organizationId,
+      input.projectId,
+      input.title,
+      input.description,
+      input.priority,
+      input.dueDate,
+      input.assigneeId,
+      input.createdBy,
+    ],
+  );
+  const row = rows[0];
+  if (!row) throw new Error("Insert into tasks returned no row");
+  return toTask(row);
+}
