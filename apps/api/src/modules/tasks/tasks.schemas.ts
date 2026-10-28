@@ -21,3 +21,18 @@ export const listTasksQuerySchema = z.object({
   assigneeId: z.uuid().optional(),
 });
 export type ListTasksQuery = z.infer<typeof listTasksQuerySchema>;
+
+export const updateTaskBodySchema = z
+  .strictObject({
+    title: z.string().trim().min(1).max(200).optional(),
+    description: z.string().trim().max(10000).nullable().optional(),
+    status: z.enum(TASK_STATUSES).optional(),
+    priority: z.enum(TASK_PRIORITIES).optional(),
+    dueDate: z.iso.date().nullable().optional(),   // null = remove due date
+    assigneeId: z.uuid().nullable().optional(),    // null = unassign
+  })
+  .refine((b) => Object.values(b).some((v) => v !== undefined), {
+    message: "Provide at least one field to update",
+  });
+
+export type UpdateTaskInput = z.infer<typeof updateTaskBodySchema>;
