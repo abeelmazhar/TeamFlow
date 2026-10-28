@@ -7,6 +7,7 @@ import { Router } from "express";
 import { devAuth } from "./middleware/dev-auth.js";
 import { requireMembership } from "./middleware/require-membership.js";
 import { projectsRouter } from "./modules/projects/projects.routes.js";
+import { taskRouter } from "./modules/tasks/tasks.routes.js";
 
 export const app = express();
 app.disable("x-powered-by");
@@ -31,6 +32,7 @@ app.get("/ready", (_req: Request, res: Response) => {
 const tenantRouter = Router({ mergeParams: true }); // mergeParams: lets it see :orgId
 tenantRouter.use(devAuth, requireMembership);
 tenantRouter.use("/projects", projectsRouter);
+tenantRouter.use("/tasks", taskRouter);
 
 app.use("/api/v1/orgs/:orgId", tenantRouter);
 

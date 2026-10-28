@@ -1,13 +1,14 @@
 import { pool } from "../../db/pool.js";
 import { withTransaction } from "../../db/transaction.js";
-import { badRequest, conflict, notFound } from "../../lib/errors.js";
+import { badRequest, conflict, forbidden, notFound } from "../../lib/errors.js";
 import { assertCan } from "../../lib/permissions.js";
 import type { TenantContext } from "../../lib/tenant-context.js";
 import { insertActivity } from "../activity/activity.repository.js";
 import { findMembership } from "../memberships/memberships.repository.js";
 import * as projectsRepo from "../projects/projects.repository.js";
 import * as projectsService from "../projects/projects.service.js";
-import type { CreateTaskInput, ListTasksQuery } from "./tasks.schemas.js";
+import { canEditTask } from "./tasks.policy.js";
+import type { CreateTaskInput, ListTasksQuery, UpdateTaskInput } from "./tasks.schemas.js";
 import * as tasksRepo from "./tasks.repository.js";
 import type { Task } from "./tasks.repository.js";
 
@@ -83,4 +84,102 @@ export async function listTasks(ctx: TenantContext, projectId: string, query: Li
       totalPages: Math.ceil(total / query.limit),
     },
   };
+}
+
+export async function getTask(ctx: TenantContext, taskId: string): Promise<Task> {
+  const task = await tasksRepo.findTaskById(pool, ctx.organizationId, taskId);
+  if (!task) throw notFound("Task not found");
+  return task;
+}
+
+const TASK_FIELDS = ["title", "description", "status", "priority", "dueDate", "assigneeId"] as const;
+
+export async function updateTask(
+  ctx: TenantContext,
+  taskId: string,
+  input: UpdateTaskInput,
+): Promise<Task> {
+  return withTransaction(async (tx) => {
+    const current = await tasksRepo.findTaskById(tx, ctx.organizationId, taskId, {
+      forUpdate: true,
+    });
+    if (!current) throw notFound("Task not found");
+    if (!canEditTask(ctx, current)) throw forbidden();
+
+    const assigneeChanging =
+      input.assigneeId !== undefined && input.assigneeId !== current.assigneeId;
+    if (assigneeChanging) {
+      assertCan(ctx.role, "task:assign");
+      if (input.assigneeId !== null) {
+        const membership = await findMembership(tx, ctx.organizationId, input.assigneeId);
+        if (!membership) {
+          throw badRequest("Assignee must be a member of this organization", [
+            { path: "assigneeId", message: "Not a member of this organization" },
+          ]);
+        }
+      }
+    }
+
+    const project = await projectsRepo.findProjectById(tx, ctx.organizationId, current.projectId, {
+      forShare: true,
+    });
+    if (project?.archivedAt) {
+      throw conflict("Project is archived. Unarchive it before editing tasks.");
+    }
+
+    const updated = await tasksRepo.updateTask(tx, ctx.organizationId, taskId, {
+      ...input,
+      description: input.description === undefined ? undefined : input.description || null,
+    });
+
+    const changes: Record<string, { from: string | null; to: string | null }> = {};
+    for (const field of TASK_FIELDS) {
+      if (current[field] !== updated[field]) {
+        changes[field] = { from: current[field], to: updated[field] };
+      }
+    }
+
+    if (Object.keys(changes).length > 0) {
+      await insertActivity(tx, {
+        organizationId: ctx.organizationId,
+        actorId: ctx.userId,
+        action: "task.updated",
+        entityType: "task",
+        entityId: taskId,
+        projectId: current.projectId,
+        metadata: changes,
+      });
+    }
+
+    return updated;
+  });
+}
+
+export async function deleteTask(ctx: TenantContext, taskId: string): Promise<void> {
+  await withTransaction(async (tx) => {
+    const current = await tasksRepo.findTaskById(tx, ctx.organizationId, taskId, {
+      forUpdate: true,
+    });
+    if (!current) throw notFound("Task not found");
+    if (!canEditTask(ctx, current)) throw forbidden();
+
+    const project = await projectsRepo.findProjectById(tx, ctx.organizationId, current.projectId, {
+      forShare: true,
+    });
+    if (project?.archivedAt) {
+      throw conflict("Project is archived. Unarchive it before deleting tasks.");
+    }
+
+    await tasksRepo.softDeleteTask(tx, ctx.organizationId, taskId);
+
+    await insertActivity(tx, {
+      organizationId: ctx.organizationId,
+      actorId: ctx.userId,
+      action: "task.deleted",
+      entityType: "task",
+      entityId: taskId,
+      projectId: current.projectId,
+      metadata: { title: current.title },
+    });
+  });
 }
