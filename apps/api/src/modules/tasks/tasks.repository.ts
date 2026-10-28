@@ -131,3 +131,79 @@ export async function insertTask(
   if (!row) throw new Error("Insert into tasks returned no row");
   return toTask(row);
 }
+
+
+export async function findTaskById(
+  db: Db,
+  organizationId: string,
+  taskId: string,
+  opts: { forUpdate?: boolean } = {},
+): Promise<Task | null> {
+  const { rows } = await db.query<TaskRow>(
+    `SELECT ${TASK_COLUMNS}
+     FROM tasks
+     WHERE id = $1 AND organization_id = $2 AND deleted_at IS NULL
+     ${opts.forUpdate ? "FOR UPDATE" : ""}`,
+    [taskId, organizationId],
+  );
+  const row = rows[0];
+  return row ? toTask(row) : null;
+}
+
+export type TaskPatch = {
+  title?: string | undefined;
+  description?: string | null | undefined;
+  status?: TaskStatus | undefined;
+  priority?: TaskPriority | undefined;
+  dueDate?: string | null | undefined;
+  assigneeId?: string | null | undefined;
+};
+
+export async function updateTask(
+  db: Db,
+  organizationId: string,
+  taskId: string,
+  patch: TaskPatch,
+): Promise<Task> {
+  const { rows } = await db.query<TaskRow>(
+    `UPDATE tasks SET
+       title        = COALESCE($3, title),
+       description  = CASE WHEN $4::boolean THEN $5 ELSE description END,
+       status       = COALESCE($6::text, status),
+       completed_at = CASE
+                        WHEN $6::text IS NULL   THEN completed_at                  -- status not changing
+                        WHEN $6::text = 'done'  THEN COALESCE(completed_at, now()) -- keep first completion time
+                        ELSE NULL                                                  -- reopened
+                      END,
+       priority     = COALESCE($7, priority),
+       due_date     = CASE WHEN $8::boolean  THEN $9::date  ELSE due_date END,
+       assignee_id  = CASE WHEN $10::boolean THEN $11::uuid ELSE assignee_id END,
+       updated_at   = now()
+     WHERE id = $1 AND organization_id = $2 AND deleted_at IS NULL
+     RETURNING ${TASK_COLUMNS}`,
+    [
+      taskId,
+      organizationId,
+      patch.title ?? null,
+      patch.description !== undefined,
+      patch.description ?? null,
+      patch.status ?? null,
+      patch.priority ?? null,
+      patch.dueDate !== undefined,
+      patch.dueDate ?? null,
+      patch.assigneeId !== undefined,
+      patch.assigneeId ?? null,
+    ],
+  );
+  const row = rows[0];
+  if (!row) throw new Error("updateTask: task not found");
+  return toTask(row);
+}
+
+export async function softDeleteTask(db: Db, organizationId: string, taskId: string): Promise<void> {
+  await db.query(
+    `UPDATE tasks SET deleted_at = now(), updated_at = now()
+     WHERE id = $1 AND organization_id = $2 AND deleted_at IS NULL`,
+    [taskId, organizationId],
+  );
+}
