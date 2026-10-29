@@ -63,3 +63,15 @@ export function createTask(db: Db, t: NewTask) {
      t.assigneeId, t.createdBy],
   );
 }
+
+export function createComment(
+  db: Db,
+  c: { orgId: string; taskId: string; authorId: string; body: string },
+) {
+  return insertId(
+    db,
+    `INSERT INTO comments (organization_id, task_id, author_id, body)
+     VALUES ($1, $2, $3, $4) RETURNING id`,
+    [c.orgId, c.taskId, c.authorId, c.body],
+  );
+}
