@@ -7,6 +7,7 @@ import { Router } from "express";
 import { devAuth } from "./middleware/dev-auth.js";
 import { requireMembership } from "./middleware/require-membership.js";
 import { projectsRouter } from "./modules/projects/projects.routes.js";
+import { commentRouter } from "./modules/comments/comments.routes.js";
 import { taskRouter } from "./modules/tasks/tasks.routes.js";
 
 export const app = express();
@@ -33,6 +34,7 @@ const tenantRouter = Router({ mergeParams: true }); // mergeParams: lets it see 
 tenantRouter.use(devAuth, requireMembership);
 tenantRouter.use("/projects", projectsRouter);
 tenantRouter.use("/tasks", taskRouter);
+tenantRouter.use("/comments", commentRouter);
 
 app.use("/api/v1/orgs/:orgId", tenantRouter);
 
